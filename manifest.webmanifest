@@ -1,9 +1,0 @@
-{
-  "name":"Fahrtenbuch",
-  "short_name":"Fahrtenbuch",
-  "start_url":"./index.html",
-  "display":"standalone",
-  "background_color":"#05080d",
-  "theme_color":"#05080d",
-  "description":"Fahrtenbuch mit speicherbarem Fahrzeugprofil und eigenem Fahrzeugbild."
-}
