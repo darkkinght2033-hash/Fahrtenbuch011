@@ -1,0 +1,1919 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f14">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Fahrtenbuch</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+ --bg:#05080d;--surface:#0a111b;--surface2:#0d1724;--text:#f4f8ff;
+ --muted:#8090a6;--blue:#1685ff;--blue2:#0869d8;--blueSoft:#0b2038;
+ --green:#25c87a;--red:#ef5350;--line:#17263a;--shadow:0 14px 35px rgba(0,0,0,.28)
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+ margin:0;background:radial-gradient(circle at 50% -8%,#10233c 0,#070d15 28%,var(--bg) 62%);
+ color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
+ padding-bottom:100px;min-height:100vh
+}
+.app{max-width:760px;margin:auto;padding:calc(14px + env(safe-area-inset-top)) 14px 30px}
+.header{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin:8px 2px 18px}
+.header h1,h1{margin:0;font-size:32px;line-height:1;letter-spacing:-1px;font-weight:900;color:var(--blue)}
+h2{margin:0 0 12px;font-size:18px}
+.small{color:var(--muted);font-size:12px}
+.badge{display:inline-flex;padding:6px 10px;border-radius:999px;background:#0b2745;color:#55a9ff;border:1px solid #174775;font-size:11px;font-weight:800}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.card{background:linear-gradient(145deg,var(--surface2),var(--surface));border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow)}
+.big{grid-column:1/-1}
+.metric{margin-top:4px;font-size:28px;font-weight:900;letter-spacing:-1px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+button,.btn{width:100%;border:0;border-radius:14px;padding:14px 16px;font-size:15px;font-weight:800;background:linear-gradient(180deg,var(--blue),var(--blue2));color:#fff}
+button:disabled{opacity:.45}
+button.secondary{background:#111d2b;border:1px solid var(--line)}
+button.green{background:linear-gradient(180deg,#2bd888,#1ba763)}
+button.red{background:linear-gradient(180deg,#ff6260,#c93434)}
+label{display:block;margin:13px 1px 6px;color:var(--muted);font-size:12px;font-weight:700}
+input,select,textarea{width:100%;background:#070d14;color:var(--text);border:1px solid var(--line);border-radius:13px;padding:13px 14px;font-size:16px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(22,133,255,.12)}
+textarea{min-height:88px;resize:vertical}
+.page{display:none}.page.active{display:block}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(5,8,13,.95);border-top:1px solid var(--line);backdrop-filter:blur(20px);padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+.tabs-inner{display:flex!important;max-width:760px;margin:auto;width:100%;gap:6px;overflow-x:auto;scrollbar-width:none}
+.tabs-inner::-webkit-scrollbar{display:none}
+.tab{min-width:82px;padding:10px 9px;border-radius:12px;background:transparent;color:#718198;font-size:11px;font-weight:800}
+.tab.active{background:#0c2b4d;color:#5fb1ff}
+.trip{padding:14px 2px;border-bottom:1px solid var(--line)}
+.trip:last-child{border-bottom:0}
+.tripButton{width:100%;padding:0;margin:0;background:transparent!important;color:inherit;border:0;text-align:left;font:inherit}
+.status{font-weight:800}.status.recording{color:var(--green)}
+.mapbox{min-height:180px;border-radius:17px;background:linear-gradient(145deg,#0b1d2e,#0b2632);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:20px;font-size:13px}
+.km{font-size:48px;font-weight:950;letter-spacing:-2px;color:#52aaff;margin:4px 0}
+.notice{padding:13px;border-radius:14px;background:#101b29;border:1px solid var(--line);color:var(--muted);font-size:12px}
+.hidden{display:none!important}
+.detailOverlay{position:fixed;inset:0;z-index:100;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.76)}
+.detailOverlay.open{display:flex}
+.detailSheet{width:100%;max-width:760px;max-height:94%;overflow:auto;background:#060b12;border:1px solid var(--line);border-radius:27px 27px 0 0;padding:18px 15px calc(26px + env(safe-area-inset-bottom))}
+.detailHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.detailHeader h2{font-size:23px;margin:0;color:var(--blue)}
+.iconBtn{width:auto;padding:10px 14px;background:#132235}
+#detailMap{height:280px;border-radius:19px;overflow:hidden;border:1px solid var(--line);background:#0b131d}
+.detailGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.detailItem{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:12px}
+.detailItem .v{margin-top:5px;font-weight:800;word-break:break-word}
+.detailWide{grid-column:1/-1}
+.routeFallback{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);padding:20px}
+#page-home .grid>.card{background:linear-gradient(145deg,#0b69d4,#064c9e);border-color:#178cff;color:white}
+#page-home .grid>.card .small{color:#c9e3ff}
+#page-home .grid>.card .metric{color:#fff}
+#quickStart{background:#fff;color:#075bb9;padding:17px;font-size:16px}
+#tripList,#fuelList,#damageList,#repairList{padding-top:4px;padding-bottom:4px}
+hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+@media(max-width:430px){.app{padding-left:12px;padding-right:12px}.metric{font-size:25px}.header h1,h1{font-size:30px}}
+
+.vehiclePickerGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.vehicleVisual{margin-top:14px;background:linear-gradient(145deg,#07111e,#0a1b30);border:1px solid #183d66;border-radius:18px;overflow:hidden;padding:8px 12px 14px}
+.vehicleVisual svg{display:block;width:100%;height:auto;max-height:190px}
+.vehicleVisualText{text-align:center;margin-top:-3px}
+.vehicleVisualText strong{display:block;font-size:20px;color:#fff}
+.vehicleVisualText span{display:block;margin-top:3px;font-size:12px;color:#7fbaff}
+.vehicleHint{margin-top:9px;line-height:1.4}
+@media(max-width:560px){.vehiclePickerGrid{grid-template-columns:1fr}.vehicleVisual svg{max-height:150px}}
+
+.vehicleImageStage{
+  min-height:185px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  border-radius:14px;
+  background:#06101c;
+}
+.vehiclePhoto{
+  display:block;
+  width:100%;
+  height:220px;
+  object-fit:cover;
+  border-radius:14px;
+}
+.vehicleImageControls{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:12px;
+}
+.vehicleImageControls #searchVehicleImageBtn{grid-column:1/-1}
+.vehicleImageCredit a{color:#66b4ff}
+@media(max-width:560px){
+  .vehiclePhoto{height:180px}
+}
+
+#vehicleSavedSummary{
+  background:linear-gradient(145deg,#091727,#0b1d31);
+  border:1px solid #174572;
+  border-radius:16px;
+  padding:13px;
+  margin-bottom:12px;
+}
+#savedVehicleTitle{color:#fff}
+#savedVehicleMeta{color:#7fbaff}
+
+
+
+
+.damageActions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:12px;
+}
+.damageActions button{padding:11px 12px}
+
+
+
+}
+
+}
+
+
+#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  transition:opacity .65s ease, visibility .65s ease;
+}
+#splashScreen.splashHidden{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+
+
+
+
+.w204GaugeNeedle::after{
+  content:"";
+  position:absolute;
+  left:-8px;
+  top:-6px;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:#e7f4ff;
+  box-shadow:0 0 18px rgba(60,170,255,.8);
+}
+
+
+
+
+
+35%{transform:scale(1.075) translateX(-.8%)}
+  70%{transform:scale(1.105) translateX(.7%)}
+  100%{transform:scale(1.08) translateX(0)}
+}
+to{transform:translateX(80%)}
+}
+18%{transform:rotate(-75deg)}
+  58%{transform:rotate(18deg)}
+  76%{transform:rotate(52deg)}
+  100%{transform:rotate(-2deg)}
+}
+to{width:100%}
+}
+@media(max-width:520px){
+  
+  
+  
+  
+  
+}
+@media(prefers-reduced-motion:reduce){
+  .w204SplashImage,.w204BlueSweep,.w204GaugeNeedle,
+  
+}
+
+
+#splashScreenV25{
+  position:fixed; inset:0; z-index:2147483000;
+  background:#010205;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+  opacity:1; visibility:visible;
+  transition:opacity .7s ease, visibility .7s ease;
+}
+#splashScreenV25.hide{opacity:0;visibility:hidden;pointer-events:none}
+.v25Bg{
+  position:absolute; inset:-3%;
+  width:106%; height:106%; object-fit:cover; object-position:center;
+  filter:saturate(1.08) contrast(1.08) brightness(.72);
+  animation:v25Camera 4.2s ease-in-out both;
+}
+.v25Shade{
+  position:absolute; inset:0;
+  background:
+    linear-gradient(180deg,rgba(0,0,0,.20) 0%,rgba(0,0,0,.06) 40%,rgba(0,0,0,.48) 100%),
+    radial-gradient(circle at 50% 45%,transparent 30%,rgba(0,0,0,.50) 100%);
+}
+.v25Header{
+  position:absolute; top:max(34px,calc(env(safe-area-inset-top) + 18px));
+  left:50%; transform:translateX(-50%);
+  width:90%; text-align:center; z-index:3;
+}
+.v25Header h1{
+  margin:0; color:#36a3ff; font-size:clamp(34px,9vw,58px);
+  font-weight:950; letter-spacing:4px;
+  text-shadow:0 0 28px rgba(33,143,255,.42);
+}
+.v25Header p{
+  margin:7px 0 0; color:#d7e6f4; font-size:clamp(10px,2.6vw,14px);
+  letter-spacing:2px;
+}
+.v25Hud{
+  position:absolute;
+  left:50%; bottom:max(34px,calc(env(safe-area-inset-bottom) + 24px));
+  transform:translateX(-50%);
+  width:min(88vw,520px);
+  z-index:4;
+  text-align:center;
+}
+.v25Speed{
+  font-size:clamp(52px,15vw,92px);
+  font-weight:950; line-height:.9;
+  color:#eef8ff;
+  letter-spacing:-4px;
+  text-shadow:0 0 20px rgba(35,154,255,.35),0 4px 18px rgba(0,0,0,.85);
+}
+.v25Speed span{
+  display:block; margin-top:8px;
+  font-size:12px; letter-spacing:2px; color:#9fc9eb; font-weight:700;
+}
+.v25Gauge{
+  position:relative;
+  width:min(72vw,370px);
+  height:18px;
+  margin:18px auto 0;
+}
+.v25GaugeLine{
+  position:absolute; left:0; right:0; top:8px; height:2px;
+  background:linear-gradient(90deg,#164677,#2d9cff,#78caff);
+  box-shadow:0 0 13px rgba(45,156,255,.8);
+}
+.v25Needle{
+  position:absolute; top:0; left:0;
+  width:18px; height:18px; border-radius:50%;
+  background:#e8f6ff;
+  box-shadow:0 0 16px #2d9cff,0 0 30px rgba(45,156,255,.6);
+  animation:v25NeedleMove 4.2s cubic-bezier(.22,.7,.2,1) both;
+}
+.v25Loading{
+  margin-top:18px; color:#d3e5f5; font-size:12px; letter-spacing:3px;
+}
+.v25Bar{
+  height:5px; width:100%; margin-top:10px;
+  background:rgba(8,22,38,.9);
+  border:1px solid rgba(83,172,255,.32);
+  border-radius:999px; overflow:hidden;
+}
+.v25BarFill{
+  height:100%; width:0;
+  background:linear-gradient(90deg,#086fda,#2d9cff,#84d0ff);
+  box-shadow:0 0 15px rgba(45,156,255,.8);
+  animation:v25Load 4.2s linear both;
+}
+.v25RoadFlash{
+  position:absolute; inset:0; z-index:2; pointer-events:none;
+  background:linear-gradient(105deg,transparent 28%,rgba(68,168,255,.0) 40%,rgba(68,168,255,.22) 49%,rgba(68,168,255,.0) 58%,transparent 70%);
+  transform:translateX(-100%);
+  animation:v25Sweep .9s linear infinite;
+  mix-blend-mode:screen;
+}
+@keyframes v25Camera{
+  0%{transform:scale(1.02) translate3d(0,0,0)}
+  45%{transform:scale(1.09) translate3d(-1.3%,0,0)}
+  78%{transform:scale(1.12) translate3d(.7%,0,0)}
+  100%{transform:scale(1.08) translate3d(0,0,0)}
+}
+@keyframes v25NeedleMove{
+  0%{left:0}
+  18%{left:18%}
+  62%{left:76%}
+  78%{left:96%}
+  100%{left:32%}
+}
+@keyframes v25Load{from{width:0}to{width:100%}}
+@keyframes v25Sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+@media(prefers-reduced-motion:reduce){
+  .v25Bg,.v25Needle,.v25BarFill,.v25RoadFlash{animation:none!important}
+  .v25BarFill{width:100%}
+}
+
+</style>
+
+<script>
+(async function(){
+  try{
+    if("caches" in window){
+      const keys=await caches.keys();
+      await Promise.all(keys.filter(k=>k!=="fahrtenbuch-v25-force-refresh").map(k=>caches.delete(k)));
+    }
+    if("serviceWorker" in navigator){
+      const regs=await navigator.serviceWorker.getRegistrations();
+      for(const reg of regs){
+        if(reg.active && !reg.active.scriptURL.includes("sw.js")) continue;
+        await reg.update().catch(()=>{});
+      }
+    }
+  }catch(e){}
+})();
+</script>
+
+</head>
+<body>
+
+<div id="splashScreenV25">
+  <img class="v25Bg" src="./splash_w204_v25.png?v=25" alt="Mercedes C-Klasse W204 bei Nacht">
+  <div class="v25Shade"></div>
+  <div class="v25RoadFlash"></div>
+  <div class="v25Header">
+    <h1>FAHRTENBUCH</h1>
+    <p>DEIN DIGITALES FAHRZEUGPROTOKOLL</p>
+  </div>
+  <div class="v25Hud">
+    <div class="v25Speed" id="v25Speed">0<span>KM/H</span></div>
+    <div class="v25Gauge">
+      <div class="v25GaugeLine"></div>
+      <div class="v25Needle"></div>
+    </div>
+    <div class="v25Loading">WIRD GELADEN</div>
+    <div class="v25Bar"><div class="v25BarFill"></div></div>
+  </div>
+</div>
+
+
+
+  </div>
+</div>
+
+
+
+
+    <div class="splashProgress"><div class="splashProgressBar"></div></div>
+    <div class="splashVersion">Version 24</div>
+  </div>
+</div>
+
+
+
+
+<div class="app">
+  <div id="page-home" class="page active">
+    <div class="header">
+      <div><div class="small">MEIN FAHRZEUG</div><h1>Fahrtenbuch</h1></div>
+      <div class="badge">Bereit zur Fahrt</div>
+    </div>
+
+    
+    <div class="card big vehicleHero" style="margin-bottom:12px">
+      <div id="v19VehicleForm">
+        <div class="row">
+          <div>
+            <div class="small">MEIN FAHRZEUG</div>
+            <h2 style="margin-top:4px;color:#2e9cff">Fahrzeug einrichten</h2>
+          </div>
+          <div class="badge">Profil</div>
+        </div>
+
+        <label>Hersteller</label>
+        <input id="v19Make" type="text" placeholder="z. B. Mercedes-Benz">
+
+        <label>Baureihe / Modell</label>
+        <input id="v19Model" type="text" placeholder="z. B. C-Klasse">
+
+        <label>Variante / Motorisierung</label>
+        <input id="v19Variant" type="text" placeholder="z. B. C 180">
+
+        <div class="vehiclePickerGrid">
+          <div>
+            <label>Herstellungsjahr</label>
+            <input id="v19Year" type="number" inputmode="numeric" min="1950" max="2035" placeholder="2020">
+          </div>
+          <div>
+            <label>Kraftstoff</label>
+            <select id="v19Fuel">
+              <option value="">Wählen</option>
+              <option>Benzin</option>
+              <option>Diesel</option>
+              <option>Hybrid</option>
+              <option>Plug-in-Hybrid</option>
+              <option>Elektro</option>
+              <option>Autogas (LPG)</option>
+            </select>
+          </div>
+          <div>
+            <label>Karosserie</label>
+            <select id="v19Body">
+              <option value="">Wählen</option>
+              <option>Limousine</option>
+              <option>Kombi</option>
+              <option>Schrägheck</option>
+              <option>Coupé</option>
+              <option>Cabriolet</option>
+              <option>SUV</option>
+              <option>Van</option>
+            </select>
+          </div>
+          <div>
+            <label>Getriebe</label>
+            <select id="v19Transmission">
+              <option value="">Wählen</option>
+              <option>Automatik</option>
+              <option>Schaltgetriebe</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Farbe</label>
+        <input id="v19Color" type="text" placeholder="z. B. Schwarz">
+
+        <label>Eigenes Fahrzeugbild</label>
+        <input id="v19PhotoInput" type="file" accept="image/*">
+        <div class="small" style="margin-top:6px">Du kannst ein Bild vom iPhone oder PC auswählen.</div>
+
+        <div id="v19PreviewWrap" class="hidden" style="margin-top:10px">
+          <img id="v19Preview" alt="Vorschau Fahrzeugbild"
+               style="width:100%;max-height:280px;object-fit:cover;border-radius:16px;border:1px solid var(--line)">
+          <button id="v19RemovePhoto" class="secondary" type="button" style="margin-top:8px">Bild entfernen</button>
+        </div>
+
+        <button id="v19Save" type="button" style="margin-top:14px">Fahrzeug speichern</button>
+        <div id="v19Status" class="small" aria-live="polite" style="margin-top:9px;color:#7fbaff"></div>
+      </div>
+
+      <div id="v19VehicleCard" class="hidden">
+        <img id="v19CardPhoto" alt="Mein Fahrzeug"
+             class="hidden"
+             style="width:100%;max-height:310px;object-fit:cover;border-radius:18px;border:1px solid var(--line);margin-bottom:13px">
+        <div class="small">MEIN FAHRZEUG</div>
+        <div id="v19CardTitle" style="font-size:23px;font-weight:950;color:#2e9cff;margin-top:4px"></div>
+        <div id="v19CardMeta" class="small" style="margin-top:6px;line-height:1.5"></div>
+        <button id="v19Edit" class="secondary" type="button" style="margin-top:14px">Fahrzeug bearbeiten</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="small">Diesen Monat</div>
+        <div class="metric" id="monthKm">0,0 km</div>
+      </div>
+      <div class="card">
+        <div class="small">Fahrten</div>
+        <div class="metric" id="tripCount">0</div>
+      </div>
+      <div class="card">
+        <div class="small">Tankkosten · Monat</div>
+        <div class="metric" id="homeFuelCost">0,00 €</div>
+      </div>
+      <div class="card">
+        <div class="small">Werkstatt · Monat</div>
+        <div class="metric" id="homeRepairCost">0,00 €</div>
+      </div>
+      <div class="card big">
+        <div class="row">
+          <div>
+            <div class="small">Gesamtkosten · Monat</div>
+            <div class="metric" id="homeTotalCost">0,00 €</div>
+          </div>
+          <div class="badge">Tanken + Werkstatt</div>
+        </div>
+      </div>
+      <div class="card big">
+        <div class="row">
+          <div>
+            <div class="small">Letzte Fahrt</div>
+            <div id="lastTrip">Noch keine Fahrt gespeichert</div>
+          </div>
+        </div>
+      </div>
+      <div class="card big">
+        <h2>Fahrt erfassen</h2>
+        <button class="green" id="quickStart">Fahrt starten</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-new" class="page">
+    <div class="header"><h1>Neue Fahrt</h1><div class="badge" id="gpsBadge">GPS bereit</div></div>
+
+    <div class="card">
+      <div class="small">Live-Strecke</div>
+      <div class="km"><span id="liveKm">0,00</span> km</div>
+      <div class="status" id="recordingStatus">Noch nicht gestartet</div>
+      <div class="mapbox" id="mapInfo">Während der Fahrt wird deine Position per GPS erfasst und die Distanz automatisch berechnet.</div>
+      <div style="height:12px"></div>
+      <div class="grid">
+        <button class="green" id="startBtn">Start</button>
+        <button class="red" id="stopBtn" disabled>Stop</button>
+      </div>
+    </div>
+
+    <div style="height:14px"></div>
+
+    <div class="card">
+      <label>Kategorie</label>
+      <select id="category">
+        <option>Privat</option>
+        <option>Arbeitsweg</option>
+        <option>Dienstlich</option>
+      </select>
+
+      <label>Startort</label>
+      <input id="startAddress" placeholder="z. B. Dresden">
+
+      <label>Zielort</label>
+      <input id="destinationAddress" placeholder="z. B. Meißen">
+
+      <label>Zweck</label>
+      <input id="purpose" placeholder="z. B. Arbeitsweg">
+
+      <label>Start-km</label>
+      <input id="startOdo" inputmode="decimal" placeholder="125430">
+
+      <label>End-km</label>
+      <input id="endOdo" inputmode="decimal" placeholder="125458">
+
+      <label>Notiz</label>
+      <textarea id="note" placeholder="Optional"></textarea>
+
+      <div style="height:14px"></div>
+      <button id="saveBtn">Fahrt speichern</button>
+    </div>
+  </div>
+
+  <div id="page-trips" class="page">
+    <div class="header"><h1>Fahrten</h1><div class="badge" id="allKm">0 km</div></div>
+    <div class="card" id="tripList">
+      <div class="small">Noch keine Fahrten vorhanden.</div>
+    </div>
+  </div>
+
+
+  <div id="page-fuel" class="page">
+    <div class="header"><h1>Tanken</h1><div class="badge" id="fuelTotal">0,00 €</div></div>
+    <div class="card">
+      <h2>Tankvorgang erfassen</h2>
+      <label>Datum</label>
+      <input id="fuelDate" type="date">
+
+      <label>Kilometerstand</label>
+      <input id="fuelOdo" inputmode="decimal" placeholder="z. B. 125500">
+
+      <label>Liter</label>
+      <input id="fuelLiters" inputmode="decimal" placeholder="z. B. 42,5">
+
+      <label>Preis pro Liter (€)</label>
+      <input id="fuelPricePerLiter" inputmode="decimal" placeholder="z. B. 1,79">
+
+      <label>Tankstelle</label>
+      <input id="fuelStation" placeholder="z. B. Aral Dresden">
+
+      <label>Kraftstoff</label>
+      <select id="fuelType">
+        <option>Benzin</option>
+        <option>Super E10</option>
+        <option>Super E5</option>
+        <option>Super Plus</option>
+        <option>Diesel</option>
+        <option>Andere</option>
+      </select>
+
+      <label>Notiz</label>
+      <textarea id="fuelNote" placeholder="Optional"></textarea>
+
+      <div style="height:14px"></div>
+      <button id="saveFuel">Tankvorgang speichern</button>
+    </div>
+
+    <div style="height:14px"></div>
+    <div class="card" id="fuelList">
+      <div class="small">Noch keine Tankvorgänge vorhanden.</div>
+    </div>
+  </div>
+
+  <div id="page-damage" class="page">
+    <div class="header"><h1>Beschädigungen</h1><div class="badge" id="damageCount">0</div></div>
+    <div class="card">
+      <h2>Schaden erfassen</h2>
+      <label>Datum</label>
+      <input id="damageDate" type="date">
+
+      <label>Kilometerstand</label>
+      <input id="damageOdo" inputmode="decimal" placeholder="z. B. 125620">
+
+      <label>Bereich</label>
+      <select id="damageArea">
+        <option>Karosserie</option>
+        <option>Felge/Reifen</option>
+        <option>Frontscheibe</option>
+        <option>Beleuchtung</option>
+        <option>Innenraum</option>
+        <option>Technik</option>
+        <option>Sonstiges</option>
+      </select>
+
+      <label>Beschreibung</label>
+      <textarea id="damageDescription" placeholder="z. B. Kratzer hinten rechts"></textarea>
+
+      <label>Status</label>
+      <select id="damageStatus">
+        <option>Offen</option>
+        <option>Werkstatt geplant</option>
+        <option>Behoben</option>
+      </select>
+
+      <label>Foto der Beschädigung</label>
+      <input id="damagePhoto" type="file" accept="image/*" capture="environment">
+      <div id="damagePhotoPreviewWrap" class="hidden" style="margin-top:10px">
+        <img id="damagePhotoPreview" alt="Vorschau der Beschädigung"
+          style="width:100%;max-height:260px;object-fit:cover;border-radius:14px;border:1px solid var(--line)">
+        <button class="secondary" id="removeDamagePhoto" type="button" style="margin-top:8px">Foto entfernen</button>
+      </div>
+      <div class="small" style="margin-top:8px">Auf dem iPhone kannst du direkt die Kamera verwenden oder ein Bild aus der Fotomediathek auswählen.</div>
+
+      <div style="height:14px"></div>
+      <button id="saveDamage">Beschädigung speichern</button>
+      <button id="cancelDamageEdit" class="secondary hidden" type="button" style="margin-top:8px">Bearbeiten abbrechen</button>
+    </div>
+
+    <div style="height:14px"></div>
+    <div class="card" id="damageList">
+      <div class="small">Noch keine Beschädigungen vorhanden.</div>
+    </div>
+  </div>
+
+  <div id="page-workshop" class="page">
+    <div class="header"><h1>Werkstatt</h1><div class="badge" id="repairTotal">0,00 €</div></div>
+    <div class="card">
+      <h2>Reparatur / Werkstatt erfassen</h2>
+
+      <label>Datum</label>
+      <input id="repairDate" type="date">
+
+      <label>Kilometerstand</label>
+      <input id="repairOdo" inputmode="decimal" placeholder="z. B. 125800">
+
+      <label>Werkstatt</label>
+      <input id="workshopName" placeholder="z. B. Autohaus Müller">
+
+      <label>Art</label>
+      <select id="repairType">
+        <option>Reparatur</option>
+        <option>Inspektion</option>
+        <option>Ölwechsel</option>
+        <option>Reifenwechsel</option>
+        <option>TÜV / HU</option>
+        <option>Wartung</option>
+        <option>Sonstiges</option>
+      </select>
+
+      <label>Beschreibung</label>
+      <textarea id="repairDescription" placeholder="Was wurde gemacht?"></textarea>
+
+      <label>Kosten (€)</label>
+      <input id="repairCost" inputmode="decimal" placeholder="z. B. 249,90">
+
+      <label>Nächster Termin</label>
+      <input id="nextServiceDate" type="date">
+
+      <div style="height:14px"></div>
+      <button id="saveRepair">Werkstatt-Eintrag speichern</button>
+    </div>
+
+    <div style="height:14px"></div>
+    <div class="card" id="repairList">
+      <div class="small">Noch keine Werkstatt-Einträge vorhanden.</div>
+    </div>
+  </div>
+
+  <div id="page-settings" class="page">
+    <div class="header"><h1>Einstellungen</h1></div>
+    <div class="card">
+      <h2>Fahrzeug</h2>
+      <label>Fahrzeug</label>
+      <input id="vehicle" placeholder="z. B. VW Golf">
+      <label>Kennzeichen</label>
+      <input id="plate" placeholder="DD-AB 1234">
+      <div style="height:14px"></div>
+      <button class="secondary" id="saveSettings">Speichern</button>
+    </div>
+
+    <div style="height:14px"></div>
+    <div class="card">
+      <h2>Daten</h2>
+      <button class="secondary" id="exportBtn">Fahrten als CSV exportieren</button>
+      <div style="height:10px"></div>
+      <button class="red" id="clearBtn">Alle Fahrten löschen</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="tripDetailOverlay" class="detailOverlay" aria-hidden="true">
+  <section class="detailSheet" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <div class="detailHeader">
+      <div><div class="small">Fahrtendetails</div><h2 id="detailTitle">Fahrt</h2></div>
+      <button class="iconBtn" id="closeDetail" type="button">Schließen</button>
+    </div>
+    <div class="grid" style="margin-bottom:14px">
+      <button class="secondary" id="editTripBtn" type="button">Fahrt bearbeiten</button>
+      <button class="red" id="deleteTripBtn" type="button">Fahrt löschen</button>
+    </div>
+    <div id="detailMap"><div class="routeFallback">Keine GPS-Route gespeichert.</div></div>
+    <div class="detailGrid">
+      <div class="detailItem"><div class="small">Datum</div><div class="v" id="dDate">–</div></div>
+      <div class="detailItem"><div class="small">Kategorie</div><div class="v" id="dCategory">–</div></div>
+      <div class="detailItem"><div class="small">Start</div><div class="v" id="dStart">–</div></div>
+      <div class="detailItem"><div class="small">Ziel</div><div class="v" id="dDestination">–</div></div>
+      <div class="detailItem"><div class="small">GPS-Strecke</div><div class="v" id="dGps">–</div></div>
+      <div class="detailItem"><div class="small">Tacho-Strecke</div><div class="v" id="dOdo">–</div></div>
+      <div class="detailItem"><div class="small">Start-km</div><div class="v" id="dStartOdo">–</div></div>
+      <div class="detailItem"><div class="small">End-km</div><div class="v" id="dEndOdo">–</div></div>
+      <div class="detailItem detailWide"><div class="small">Zweck</div><div class="v" id="dPurpose">–</div></div>
+      <div class="detailItem detailWide"><div class="small">Notiz</div><div class="v" id="dNote">–</div></div>
+    </div>
+
+    <div id="editTripPanel" class="card hidden" style="margin-top:14px">
+      <h2>Fahrt bearbeiten</h2>
+
+      <label>Kategorie</label>
+      <select id="editCategory">
+        <option>Privat</option>
+        <option>Arbeitsweg</option>
+        <option>Dienstlich</option>
+      </select>
+
+      <label>Startort</label>
+      <input id="editStartAddress">
+
+      <label>Zielort</label>
+      <input id="editDestinationAddress">
+
+      <label>Zweck</label>
+      <input id="editPurpose">
+
+      <label>Start-km</label>
+      <input id="editStartOdo" inputmode="decimal">
+
+      <label>End-km</label>
+      <input id="editEndOdo" inputmode="decimal">
+
+      <label>Notiz</label>
+      <textarea id="editNote"></textarea>
+
+      <div style="height:14px"></div>
+      <div class="grid">
+        <button class="green" id="saveTripEditBtn" type="button">Änderungen speichern</button>
+        <button class="secondary" id="cancelTripEditBtn" type="button">Abbrechen</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<nav class="tabs">
+  <div class="tabs-inner" style="grid-template-columns:repeat(7,minmax(74px,1fr));overflow-x:auto">
+    <button class="tab active" data-page="home">Übersicht</button>
+    <button class="tab" data-page="new">Neue Fahrt</button>
+    <button class="tab" data-page="trips">Fahrten</button>
+    <button class="tab" data-page="fuel">Tanken</button>
+    <button class="tab" data-page="damage">Schäden</button>
+    <button class="tab" data-page="workshop">Werkstatt</button>
+    <button class="tab" data-page="settings">Einstellungen</button>
+  </div>
+</nav>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const state = {
+  tracking:false, watchId:null, distance:0, lastPos:null, startedAt:null, route:[], detailMap:null, selectedTripId:null, damagePhotoData:null, editingDamageId:null,
+  trips: JSON.parse(localStorage.getItem("fahrtenbuch_trips") || "[]"),
+  fuel: JSON.parse(localStorage.getItem("fahrtenbuch_fuel") || "[]"),
+  damages: JSON.parse(localStorage.getItem("fahrtenbuch_damages") || "[]"),
+  repairs: JSON.parse(localStorage.getItem("fahrtenbuch_repairs") || "[]")
+};
+
+function saveTrips(){
+  localStorage.setItem("fahrtenbuch_trips", JSON.stringify(state.trips));
+  render();
+}
+function saveExtras(){
+  localStorage.setItem("fahrtenbuch_fuel", JSON.stringify(state.fuel));
+  localStorage.setItem("fahrtenbuch_damages", JSON.stringify(state.damages));
+  localStorage.setItem("fahrtenbuch_repairs", JSON.stringify(state.repairs));
+  renderExtras();
+}
+
+function haversine(a,b){
+  const R=6371000, toRad=x=>x*Math.PI/180;
+  const dLat=toRad(b.lat-a.lat), dLon=toRad(b.lon-a.lon);
+  const lat1=toRad(a.lat), lat2=toRad(b.lat);
+  const h=Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+
+function startTracking(){
+  if(!navigator.geolocation){
+    alert("GPS wird von diesem Browser nicht unterstützt.");
+    return;
+  }
+  state.distance=0; state.lastPos=null; state.route=[]; state.startedAt=Date.now(); state.tracking=true;
+  $("liveKm").textContent="0,00";
+  $("recordingStatus").textContent="Aufzeichnung läuft";
+  $("recordingStatus").classList.add("recording");
+  $("startBtn").disabled=true; $("stopBtn").disabled=false;
+  $("gpsBadge").textContent="GPS aktiv";
+
+  state.watchId=navigator.geolocation.watchPosition(pos=>{
+    const p={lat:pos.coords.latitude, lon:pos.coords.longitude, acc:pos.coords.accuracy};
+    if(p.acc <= 50){
+      if(state.lastPos){
+        const d=haversine(state.lastPos,p);
+        if(d>=3 && d<=1000){
+          state.distance += d;
+          state.route.push([p.lat,p.lon]);
+        }
+      } else {
+        state.route.push([p.lat,p.lon]);
+      }
+      state.lastPos=p;
+      $("liveKm").textContent=(state.distance/1000).toFixed(2).replace(".",",");
+      $("mapInfo").textContent=`GPS aktiv · Genauigkeit ca. ${Math.round(p.acc)} m`;
+    }
+  }, err=>{
+    $("recordingStatus").textContent="GPS-Fehler: "+err.message;
+  }, {enableHighAccuracy:true, maximumAge:1000, timeout:15000});
+}
+
+function stopTracking(){
+  if(state.watchId!==null) navigator.geolocation.clearWatch(state.watchId);
+  state.watchId=null; state.tracking=false;
+  $("recordingStatus").textContent="Aufzeichnung beendet";
+  $("recordingStatus").classList.remove("recording");
+  $("startBtn").disabled=false; $("stopBtn").disabled=true;
+  $("gpsBadge").textContent="GPS gestoppt";
+}
+
+function num(v){
+  return Number(String(v).replace(",", ".")) || 0;
+}
+
+function saveTrip(){
+  if(state.tracking) stopTracking();
+  const startOdo=num($("startOdo").value), endOdo=num($("endOdo").value);
+  const trip={
+    id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    date:new Date().toISOString(),
+    category:$("category").value,
+    startAddress:$("startAddress").value.trim(),
+    destinationAddress:$("destinationAddress").value.trim(),
+    purpose:$("purpose").value.trim(),
+    startOdo,endOdo,
+    odoKm:Math.max(0,endOdo-startOdo),
+    gpsKm:state.distance/1000,
+    route:state.route.slice(),
+    note:$("note").value.trim()
+  };
+  state.trips.unshift(trip);
+  saveTrips();
+  ["startAddress","destinationAddress","purpose","startOdo","endOdo","note"].forEach(id=>$(id).value="");
+  state.distance=0; state.route=[]; $("liveKm").textContent="0,00";
+  alert("Fahrt gespeichert.");
+  switchPage("trips");
+}
+
+function switchPage(name){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  $("page-"+name).classList.add("active");
+  document.querySelector(`.tab[data-page="${name}"]`).classList.add("active");
+}
+
+function render(){
+  const now=new Date();
+  const monthTrips=state.trips.filter(t=>{
+    const d=new Date(t.date);
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  });
+  const monthKm=monthTrips.reduce((s,t)=>s+(t.gpsKm||t.odoKm||0),0);
+  $("monthKm").textContent=monthKm.toFixed(1).replace(".",",")+" km";
+  $("tripCount").textContent=state.trips.length;
+  $("allKm").textContent=state.trips.reduce((s,t)=>s+(t.gpsKm||t.odoKm||0),0).toFixed(1).replace(".",",")+" km";
+
+  if(state.trips.length){
+    const t=state.trips[0];
+    $("lastTrip").textContent=`${t.startAddress||"Start"} → ${t.destinationAddress||"Ziel"} · ${(t.gpsKm||t.odoKm||0).toFixed(1).replace(".",",")} km`;
+  } else $("lastTrip").textContent="Noch keine Fahrt gespeichert";
+
+  const list=$("tripList");
+  if(!state.trips.length){
+    list.innerHTML='<div class="small">Noch keine Fahrten vorhanden.</div>';
+  } else {
+    list.innerHTML=state.trips.map(t=>{
+      const d=new Date(t.date).toLocaleString("de-DE");
+      const km=(t.gpsKm||t.odoKm||0).toFixed(1).replace(".",",");
+      return `<button class="tripButton" type="button" data-trip-id="${t.id}">
+        <div class="trip">
+          <div class="row"><strong>${escapeHtml(t.category)}</strong><span class="small">${d}</span></div>
+          <div style="margin-top:6px">${escapeHtml(t.startAddress||"Start")} → ${escapeHtml(t.destinationAddress||"Ziel")}</div>
+          <div class="small" style="margin-top:5px">${km} km · Tacho ${(t.odoKm||0).toFixed(1).replace(".",",")} km · Details öffnen ›</div>
+        </div>
+      </button>`;
+    }).join("");
+    list.querySelectorAll(".tripButton").forEach(btn=>{
+      btn.addEventListener("click",()=>openTripDetail(btn.dataset.tripId));
+    });
+  }
+  renderExtras();
+}
+
+function renderExtras(){
+  const fuelTotal = state.fuel.reduce((s,f)=>s+(f.total||0),0);
+  $("fuelTotal").textContent=fuelTotal.toFixed(2).replace(".",",")+" €";
+  $("damageCount").textContent=String(state.damages.length);
+  const repairTotal=state.repairs.reduce((s,r)=>s+(r.cost||0),0);
+  $("repairTotal").textContent=repairTotal.toFixed(2).replace(".",",")+" €";
+
+  const now=new Date();
+  const currentMonth=now.getMonth();
+  const currentYear=now.getFullYear();
+  const inCurrentMonth=dateValue=>{
+    if(!dateValue) return false;
+    const d=new Date(dateValue+"T12:00:00");
+    return d.getMonth()===currentMonth && d.getFullYear()===currentYear;
+  };
+  const monthFuelCost=state.fuel
+    .filter(f=>inCurrentMonth(f.date))
+    .reduce((s,f)=>s+(f.total||0),0);
+  const monthRepairCost=state.repairs
+    .filter(r=>inCurrentMonth(r.date))
+    .reduce((s,r)=>s+(r.cost||0),0);
+  const monthTotalCost=monthFuelCost+monthRepairCost;
+
+  if($("homeFuelCost")) $("homeFuelCost").textContent=monthFuelCost.toFixed(2).replace(".",",")+" €";
+  if($("homeRepairCost")) $("homeRepairCost").textContent=monthRepairCost.toFixed(2).replace(".",",")+" €";
+  if($("homeTotalCost")) $("homeTotalCost").textContent=monthTotalCost.toFixed(2).replace(".",",")+" €";
+
+  const fuelList=$("fuelList");
+  fuelList.innerHTML=state.fuel.length ? state.fuel.map(f=>`
+    <div class="trip">
+      <div class="row"><strong>${escapeHtml(f.type)}</strong><span class="small">${escapeHtml(f.date)}</span></div>
+      <div style="margin-top:6px">${f.liters.toFixed(2).replace(".",",")} l · ${f.total.toFixed(2).replace(".",",")} €</div>
+      <div class="small" style="margin-top:5px">${escapeHtml(f.station||"Tankstelle nicht angegeben")} · ${f.odo.toFixed(0)} km</div>
+    </div>`).join("") : '<div class="small">Noch keine Tankvorgänge vorhanden.</div>';
+
+  const damageList=$("damageList");
+  damageList.innerHTML=state.damages.length ? state.damages.map(d=>`
+    <div class="trip" data-damage-id="${escapeHtml(String(d.id))}">
+      <div class="row"><strong>${escapeHtml(d.area)}</strong><span class="badge">${escapeHtml(d.status)}</span></div>
+      ${d.photo ? `<img src="${d.photo}" alt="Foto der Beschädigung" style="width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin-top:10px;border:1px solid var(--line)">` : ""}
+      <div style="margin-top:6px">${escapeHtml(d.description||"Keine Beschreibung")}</div>
+      <div class="small" style="margin-top:5px">${escapeHtml(d.date)} · ${(d.odo||0).toFixed(0)} km</div>
+      <div class="damageActions">
+        <button type="button" class="secondary damageEditBtn" data-id="${escapeHtml(String(d.id))}">Bearbeiten</button>
+        <button type="button" class="red damageDeleteBtn" data-id="${escapeHtml(String(d.id))}">Löschen</button>
+      </div>
+    </div>`).join("") : '<div class="small">Noch keine Beschädigungen vorhanden.</div>';
+
+  damageList.querySelectorAll(".damageEditBtn").forEach(btn=>{
+    btn.addEventListener("click",()=>beginDamageEdit(btn.dataset.id));
+  });
+  damageList.querySelectorAll(".damageDeleteBtn").forEach(btn=>{
+    btn.addEventListener("click",()=>deleteDamage(btn.dataset.id));
+  });
+
+  const repairList=$("repairList");
+  repairList.innerHTML=state.repairs.length ? state.repairs.map(r=>`
+    <div class="trip">
+      <div class="row"><strong>${escapeHtml(r.type)}</strong><span>${r.cost.toFixed(2).replace(".",",")} €</span></div>
+      <div style="margin-top:6px">${escapeHtml(r.description||"Keine Beschreibung")}</div>
+      <div class="small" style="margin-top:5px">${escapeHtml(r.workshop||"Werkstatt nicht angegeben")} · ${escapeHtml(r.date)} · ${r.odo.toFixed(0)} km${r.nextDate ? " · Nächster Termin: "+escapeHtml(r.nextDate) : ""}</div>
+    </div>`).join("") : '<div class="small">Noch keine Werkstatt-Einträge vorhanden.</div>';
+}
+
+
+function openTripDetail(id){
+  const t=state.trips.find(x=>String(x.id)===String(id));
+  if(!t) return;
+  state.selectedTripId=t.id;
+  $("editTripPanel").classList.add("hidden");
+  $("detailTitle").textContent=(t.startAddress||"Start")+" → "+(t.destinationAddress||"Ziel");
+  $("dDate").textContent=new Date(t.date).toLocaleString("de-DE");
+  $("dCategory").textContent=t.category||"–";
+  $("dStart").textContent=t.startAddress||"–";
+  $("dDestination").textContent=t.destinationAddress||"–";
+  $("dGps").textContent=((t.gpsKm||0).toFixed(2).replace(".",","))+" km";
+  $("dOdo").textContent=((t.odoKm||0).toFixed(2).replace(".",","))+" km";
+  $("dStartOdo").textContent=((t.startOdo||0).toFixed(0))+" km";
+  $("dEndOdo").textContent=((t.endOdo||0).toFixed(0))+" km";
+  $("dPurpose").textContent=t.purpose||"–";
+  $("dNote").textContent=t.note||"–";
+
+  const overlay=$("tripDetailOverlay");
+  overlay.classList.add("open");
+  overlay.setAttribute("aria-hidden","false");
+  document.body.style.overflow="hidden";
+  setTimeout(()=>renderTripMap(t),80);
+}
+
+
+function beginEditTrip(){
+  const t=state.trips.find(x=>String(x.id)===String(state.selectedTripId));
+  if(!t) return;
+  $("editCategory").value=t.category||"Privat";
+  $("editStartAddress").value=t.startAddress||"";
+  $("editDestinationAddress").value=t.destinationAddress||"";
+  $("editPurpose").value=t.purpose||"";
+  $("editStartOdo").value=t.startOdo ?? "";
+  $("editEndOdo").value=t.endOdo ?? "";
+  $("editNote").value=t.note||"";
+  $("editTripPanel").classList.remove("hidden");
+  $("editTripPanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function cancelEditTrip(){
+  $("editTripPanel").classList.add("hidden");
+}
+
+function saveTripEdit(){
+  const t=state.trips.find(x=>String(x.id)===String(state.selectedTripId));
+  if(!t) return;
+
+  t.category=$("editCategory").value;
+  t.startAddress=$("editStartAddress").value.trim();
+  t.destinationAddress=$("editDestinationAddress").value.trim();
+  t.purpose=$("editPurpose").value.trim();
+  t.startOdo=num($("editStartOdo").value);
+  t.endOdo=num($("editEndOdo").value);
+  t.odoKm=Math.max(0,t.endOdo-t.startOdo);
+  t.note=$("editNote").value.trim();
+
+  saveTrips();
+  $("editTripPanel").classList.add("hidden");
+  openTripDetail(t.id);
+  alert("Fahrt wurde aktualisiert.");
+}
+
+function deleteSelectedTrip(){
+  const t=state.trips.find(x=>String(x.id)===String(state.selectedTripId));
+  if(!t) return;
+  const label=(t.startAddress||"Start")+" → "+(t.destinationAddress||"Ziel");
+  if(!confirm('Fahrt "'+label+'" wirklich löschen?')) return;
+
+  state.trips=state.trips.filter(x=>String(x.id)!==String(state.selectedTripId));
+  state.selectedTripId=null;
+  saveTrips();
+  closeTripDetail();
+}
+
+function closeTripDetail(){
+  $("tripDetailOverlay").classList.remove("open");
+  $("tripDetailOverlay").setAttribute("aria-hidden","true");
+  document.body.style.overflow="";
+}
+
+function renderTripMap(t){
+  const el=$("detailMap");
+  if(state.detailMap){
+    state.detailMap.remove();
+    state.detailMap=null;
+  }
+
+  const route=Array.isArray(t.route) ? t.route.filter(p=>Array.isArray(p)&&p.length===2) : [];
+  if(route.length<2 || typeof L==="undefined"){
+    el.innerHTML='<div class="routeFallback">'+
+      (route.length<2
+        ? 'Für diese Fahrt wurde noch keine GPS-Route gespeichert. Neue Fahrten speichern ab dieser Version die Route.'
+        : 'Karte konnte nicht geladen werden. Für die Kartenansicht wird eine Internetverbindung benötigt.')+
+      '</div>';
+    return;
+  }
+
+  el.innerHTML="";
+  state.detailMap=L.map(el);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19,
+    attribution:"&copy; OpenStreetMap"
+  }).addTo(state.detailMap);
+
+  const line=L.polyline(route,{weight:5}).addTo(state.detailMap);
+  L.marker(route[0]).addTo(state.detailMap).bindPopup("Start");
+  L.marker(route[route.length-1]).addTo(state.detailMap).bindPopup("Ziel");
+  state.detailMap.fitBounds(line.getBounds(),{padding:[28,28]});
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function exportCsv(){
+  const rows=[["Datum","Kategorie","Start","Ziel","Zweck","GPS km","Tacho km","Notiz"]];
+  state.trips.forEach(t=>rows.push([
+    new Date(t.date).toLocaleString("de-DE"),t.category,t.startAddress,t.destinationAddress,t.purpose,
+    t.gpsKm.toFixed(2),t.odoKm.toFixed(2),t.note
+  ]));
+  const csv=rows.map(r=>r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(";")).join("\n");
+  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download="fahrtenbuch.csv"; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchPage(t.dataset.page)));
+$("startBtn").addEventListener("click",startTracking);
+$("stopBtn").addEventListener("click",stopTracking);
+$("saveBtn").addEventListener("click",saveTrip);
+$("quickStart").addEventListener("click",()=>{switchPage("new"); setTimeout(startTracking,150)});
+$("exportBtn").addEventListener("click",exportCsv);
+$("clearBtn").addEventListener("click",()=>{
+  if(confirm("Wirklich alle gespeicherten Daten löschen?")){
+    state.trips=[]; state.fuel=[]; state.damages=[]; state.repairs=[];
+    saveTrips(); saveExtras();
+  }
+});
+$("saveSettings").addEventListener("click",()=>{
+  localStorage.setItem("fahrtenbuch_vehicle",$("vehicle").value);
+  localStorage.setItem("fahrtenbuch_plate",$("plate").value);
+  alert("Einstellungen gespeichert.");
+});
+$("vehicle").value=localStorage.getItem("fahrtenbuch_vehicle")||"";
+$("plate").value=localStorage.getItem("fahrtenbuch_plate")||"";
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+
+$("saveFuel").addEventListener("click",()=>{
+  const liters=num($("fuelLiters").value), ppl=num($("fuelPricePerLiter").value);
+  if(liters<=0 || ppl<=0){ alert("Bitte Liter und Preis pro Liter eintragen."); return; }
+  state.fuel.unshift({
+    id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    date:$("fuelDate").value || new Date().toISOString().slice(0,10),
+    odo:num($("fuelOdo").value),
+    liters,
+    pricePerLiter:ppl,
+    total:liters*ppl,
+    station:$("fuelStation").value.trim(),
+    type:$("fuelType").value,
+    note:$("fuelNote").value.trim()
+  });
+  ["fuelOdo","fuelLiters","fuelPricePerLiter","fuelStation","fuelNote"].forEach(id=>$(id).value="");
+  saveExtras();
+  alert("Tankvorgang gespeichert.");
+});
+
+
+function resizeDamagePhoto(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error("Bild konnte nicht gelesen werden."));
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error("Bild konnte nicht verarbeitet werden."));
+      img.onload=()=>{
+        const maxSide=1280;
+        let w=img.width,h=img.height;
+        const scale=Math.min(1,maxSide/Math.max(w,h));
+        w=Math.round(w*scale); h=Math.round(h*scale);
+        const canvas=document.createElement("canvas");
+        canvas.width=w; canvas.height=h;
+        const ctx=canvas.getContext("2d");
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL("image/jpeg",0.72));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+$("damagePhoto").addEventListener("change",async e=>{
+  const file=e.target.files && e.target.files[0];
+  if(!file) return;
+  if(!file.type.startsWith("image/")){
+    alert("Bitte eine Bilddatei auswählen.");
+    e.target.value="";
+    return;
+  }
+  try{
+    const data=await resizeDamagePhoto(file);
+    state.damagePhotoData=data;
+    $("damagePhotoPreview").src=data;
+    $("damagePhotoPreviewWrap").classList.remove("hidden");
+  }catch(err){
+    alert(err.message||"Das Bild konnte nicht verarbeitet werden.");
+  }
+});
+
+$("removeDamagePhoto").addEventListener("click",()=>{
+  state.damagePhotoData=null;
+  $("damagePhoto").value="";
+  $("damagePhotoPreview").removeAttribute("src");
+  $("damagePhotoPreviewWrap").classList.add("hidden");
+});
+
+
+function resetDamageForm(){
+  state.editingDamageId=null;
+  state.damagePhotoData=null;
+  $("damageDate").value=new Date().toISOString().slice(0,10);
+  $("damageOdo").value="";
+  $("damageArea").selectedIndex=0;
+  $("damageDescription").value="";
+  $("damageStatus").value="Offen";
+  $("damagePhoto").value="";
+  $("damagePhotoPreview").removeAttribute("src");
+  $("damagePhotoPreviewWrap").classList.add("hidden");
+  $("saveDamage").textContent="Beschädigung speichern";
+  $("cancelDamageEdit").classList.add("hidden");
+}
+
+function beginDamageEdit(id){
+  const damage=state.damages.find(d=>String(d.id)===String(id));
+  if(!damage) return;
+
+  state.editingDamageId=damage.id;
+  state.damagePhotoData=damage.photo||null;
+
+  $("damageDate").value=damage.date||new Date().toISOString().slice(0,10);
+  $("damageOdo").value=damage.odo ?? "";
+  $("damageArea").value=damage.area||"Karosserie";
+  $("damageDescription").value=damage.description||"";
+  $("damageStatus").value=damage.status||"Offen";
+
+  if(damage.photo){
+    $("damagePhotoPreview").src=damage.photo;
+    $("damagePhotoPreviewWrap").classList.remove("hidden");
+  }else{
+    $("damagePhotoPreview").removeAttribute("src");
+    $("damagePhotoPreviewWrap").classList.add("hidden");
+  }
+
+  $("saveDamage").textContent="Änderungen speichern";
+  $("cancelDamageEdit").classList.remove("hidden");
+
+  const page=$("page-damage");
+  if(page) page.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function deleteDamage(id){
+  const damage=state.damages.find(d=>String(d.id)===String(id));
+  if(!damage) return;
+
+  const description=damage.description ? ` „${damage.description}“` : "";
+  if(!confirm(`Beschädigung${description} wirklich löschen?`)) return;
+
+  state.damages=state.damages.filter(d=>String(d.id)!==String(id));
+  saveExtras();
+
+  if(String(state.editingDamageId)===String(id)){
+    resetDamageForm();
+  }
+}
+
+$("cancelDamageEdit").addEventListener("click",resetDamageForm);
+
+$("saveDamage").addEventListener("click",()=>{
+  const payload={
+    date:$("damageDate").value || new Date().toISOString().slice(0,10),
+    odo:num($("damageOdo").value),
+    area:$("damageArea").value,
+    description:$("damageDescription").value.trim(),
+    status:$("damageStatus").value,
+    photo:state.damagePhotoData
+  };
+
+  if(state.editingDamageId){
+    const index=state.damages.findIndex(d=>String(d.id)===String(state.editingDamageId));
+    if(index>=0){
+      state.damages[index]={...state.damages[index],...payload};
+      saveExtras();
+      resetDamageForm();
+      alert("Beschädigung aktualisiert.");
+      return;
+    }
+  }
+
+  state.damages.unshift({
+    id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    ...payload
+  });
+  saveExtras();
+  resetDamageForm();
+  alert("Beschädigung gespeichert.");
+});
+
+$("saveRepair").addEventListener("click",()=>{
+  state.repairs.unshift({
+    id:crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+    date:$("repairDate").value || new Date().toISOString().slice(0,10),
+    odo:num($("repairOdo").value),
+    workshop:$("workshopName").value.trim(),
+    type:$("repairType").value,
+    description:$("repairDescription").value.trim(),
+    cost:num($("repairCost").value),
+    nextDate:$("nextServiceDate").value
+  });
+  ["repairOdo","workshopName","repairDescription","repairCost","nextServiceDate"].forEach(id=>$(id).value="");
+  saveExtras();
+  alert("Werkstatt-Eintrag gespeichert.");
+});
+
+
+$("closeDetail").addEventListener("click",closeTripDetail);
+$("editTripBtn").addEventListener("click",beginEditTrip);
+$("deleteTripBtn").addEventListener("click",deleteSelectedTrip);
+$("saveTripEditBtn").addEventListener("click",saveTripEdit);
+$("cancelTripEditBtn").addEventListener("click",cancelEditTrip);
+$("tripDetailOverlay").addEventListener("click",e=>{
+  if(e.target===$("tripDetailOverlay")) closeTripDetail();
+});
+
+["fuelDate","damageDate","repairDate"].forEach(id=>{
+  if($(id)) $(id).value=new Date().toISOString().slice(0,10);
+});
+
+
+
+
+
+
+const vehicleCatalog = {
+  "Mercedes-Benz": {
+    "C-Klasse": ["C 160","C 180","C 200","C 220 d","C 250","C 300","C 300 e","C 43 AMG","C 63 AMG"],
+    "E-Klasse": ["E 200","E 220 d","E 300","E 300 de","E 350","E 450","E 53 AMG","E 63 AMG"],
+    "A-Klasse": ["A 160","A 180","A 200","A 220","A 250 e","A 35 AMG","A 45 AMG"],
+    "CLA": ["CLA 180","CLA 200","CLA 220 d","CLA 250 e","CLA 35 AMG","CLA 45 AMG"],
+    "GLC": ["GLC 200","GLC 220 d","GLC 300","GLC 300 e","GLC 43 AMG","GLC 63 AMG"]
+  },
+  "Audi": {
+    "A3": ["30 TFSI","35 TFSI","35 TDI","40 TFSI e","S3","RS3"],
+    "A4": ["35 TFSI","40 TFSI","35 TDI","40 TDI","S4","RS4"],
+    "A5": ["35 TFSI","40 TFSI","40 TDI","S5","RS5"],
+    "A6": ["40 TDI","45 TFSI","50 TDI","50 TFSI e","S6","RS6"],
+    "Q5": ["40 TDI","45 TFSI","50 TFSI e","SQ5"]
+  },
+  "BMW": {
+    "1er": ["116i","118i","120i","116d","118d","120d","M135i"],
+    "3er": ["318i","320i","330i","318d","320d","330d","330e","M340i","M3"],
+    "5er": ["520i","530i","520d","530d","530e","540i","M550i","M5"],
+    "X3": ["20i","30i","20d","30d","30e","M40i","M"]
+  },
+  "Volkswagen": {
+    "Golf": ["1.0 TSI","1.5 TSI","2.0 TDI","1.5 eTSI","GTE","GTI","GTD","R"],
+    "Passat": ["1.5 TSI","2.0 TSI","2.0 TDI","GTE"],
+    "Tiguan": ["1.5 TSI","2.0 TSI","2.0 TDI","eHybrid","R"],
+    "Polo": ["1.0 MPI","1.0 TSI","GTI"]
+  },
+  "Škoda": {
+    "Octavia": ["1.0 TSI","1.5 TSI","2.0 TSI","2.0 TDI","iV","RS"],
+    "Superb": ["1.5 TSI","2.0 TSI","2.0 TDI","iV"],
+    "Kodiaq": ["1.5 TSI","2.0 TSI","2.0 TDI","RS"]
+  },
+  "Ford": {
+    "Focus": ["1.0 EcoBoost","1.5 EcoBoost","1.5 EcoBlue","2.0 EcoBlue","ST"],
+    "Kuga": ["1.5 EcoBoost","2.0 EcoBlue","Hybrid","Plug-in-Hybrid"]
+  },
+  "Opel": {
+    "Astra": ["1.2 Turbo","1.5 Diesel","Plug-in-Hybrid","Electric"],
+    "Corsa": ["1.2","1.2 Turbo","Electric"],
+    "Insignia": ["1.5 Turbo","2.0 Turbo","1.6 Diesel","2.0 Diesel"]
+  },
+  "Toyota": {
+    "Corolla": ["1.2 Turbo","1.8 Hybrid","2.0 Hybrid"],
+    "Yaris": ["1.0","1.5","1.5 Hybrid","GR Yaris"],
+    "RAV4": ["2.5 Hybrid","Plug-in-Hybrid"]
+  },
+  "Hyundai": {
+    "i30": ["1.0 T-GDI","1.5 T-GDI","1.6 CRDi","N"],
+    "Tucson": ["1.6 T-GDI","1.6 CRDi","Hybrid","Plug-in-Hybrid"]
+  },
+  "Kia": {
+    "Ceed": ["1.0 T-GDI","1.5 T-GDI","1.6 CRDi","Plug-in-Hybrid"],
+    "Sportage": ["1.6 T-GDI","1.6 CRDi","Hybrid","Plug-in-Hybrid"]
+  },
+  "Renault": {
+    "Clio": ["TCe 90","TCe 100","Blue dCi 100","E-Tech Hybrid"],
+    "Megane": ["TCe 140","Blue dCi 115","E-Tech Plug-in","E-Tech Electric"]
+  },
+  "Peugeot": {
+    "308": ["PureTech 130","BlueHDi 130","Hybrid 180","Hybrid 225"],
+    "3008": ["PureTech 130","BlueHDi 130","Hybrid 225","Hybrid4 300"]
+  }
+};
+
+function setSelectOptions(select, placeholder, values, selected="") {
+  if (!select) return;
+  select.innerHTML = "";
+  const placeholderOption = document.createElement("option");
+  placeholderOption.value = "";
+  placeholderOption.textContent = placeholder;
+  select.appendChild(placeholderOption);
+
+  values.forEach(value => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    select.appendChild(option);
+  });
+
+  select.disabled = values.length === 0;
+  if (selected && values.includes(selected)) select.value = selected;
+}
+
+function fillVehicleModels(make, selected="") {
+  const models = make && vehicleCatalog[make] ? Object.keys(vehicleCatalog[make]) : [];
+  setSelectOptions(
+    $("homeVehicleModel"),
+    models.length ? "Baureihe / Modell wählen" : "Erst Hersteller wählen",
+    models,
+    selected
+  );
+}
+
+function fillVehicleVariants(make, modelName, selected="") {
+  const variants =
+    make &&
+    modelName &&
+    vehicleCatalog[make] &&
+    vehicleCatalog[make][modelName]
+      ? vehicleCatalog[make][modelName]
+      : [];
+
+  setSelectOptions(
+    $("homeVehicleVariant"),
+    variants.length ? "Variante / Motorisierung wählen" : "Erst Modell wählen",
+    variants,
+    selected
+  );
+}
+
+function fillVehicleYears(){
+  const y=$("homeVehicleYear");
+  if(!y) return;
+  const current=new Date().getFullYear();
+  for(let year=current;year>=1990;year--){
+    const o=document.createElement("option");
+    o.value=String(year); o.textContent=String(year); y.appendChild(o);
+  }
+}
+
+function updateVehicleVisual(){
+  const make=$("homeVehicleMake")?.value||"";
+  const model=$("homeVehicleModel")?.value||"";
+  const variant=$("homeVehicleVariant")?.value||"";
+  const year=$("homeVehicleYear")?.value||"";
+  const fuel=$("homeVehicleFuel")?.value||"";
+  const body=$("homeVehicleBody")?.value||"";
+  const transmission=$("homeVehicleTransmission")?.value||"";
+  const color=$("homeVehicleColor")?.value||"";
+  const name=[make,model,variant].filter(Boolean).join(" ");
+  $("vehicleVisualName").textContent=name||"Fahrzeug auswählen";
+  $("vehicleVisualYear").textContent=[year ? "Baujahr "+year : "",fuel,body,transmission,color].filter(Boolean).join(" · ") || "Hersteller · Modell · Variante · Baujahr";
+  localStorage.setItem("fahrtenbuch_vehicle_make",make);
+  localStorage.setItem("fahrtenbuch_vehicle_model",model);
+  localStorage.setItem("fahrtenbuch_vehicle_variant",variant);
+  localStorage.setItem("fahrtenbuch_vehicle_year",year);
+  localStorage.setItem("fahrtenbuch_vehicle_fuel",fuel);
+  localStorage.setItem("fahrtenbuch_vehicle_body",body);
+  localStorage.setItem("fahrtenbuch_vehicle_transmission",transmission);
+  localStorage.setItem("fahrtenbuch_vehicle_color",color);
+}
+
+fillVehicleYears();
+
+
+
+let ownVehiclePhotoData = null;
+
+function resizeOwnVehiclePhoto(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error("Bild konnte nicht gelesen werden."));
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error("Bild konnte nicht verarbeitet werden."));
+      img.onload=()=>{
+        const maxSide=1400;
+        let w=img.width,h=img.height;
+        const scale=Math.min(1,maxSide/Math.max(w,h));
+        w=Math.round(w*scale); h=Math.round(h*scale);
+        const canvas=document.createElement("canvas");
+        canvas.width=w; canvas.height=h;
+        const ctx=canvas.getContext("2d");
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL("image/jpeg",0.78));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function applyOwnVehiclePhoto(data){
+  if(!data) return;
+  ownVehiclePhotoData=data;
+  $("vehiclePhoto").src=data;
+  $("vehiclePhoto").classList.remove("hidden");
+  $("vehicleFallback").classList.add("hidden");
+  $("vehicleImageCredit").classList.add("hidden");
+  $("vehicleImageStatus").textContent="Eigenes Fahrzeugbild ausgewählt.";
+}
+
+function getVehicleProfile(){
+  return {
+    make:$("homeVehicleMake")?.value||"",
+    model:$("homeVehicleModel")?.value||"",
+    variant:$("homeVehicleVariant")?.value||"",
+    year:$("homeVehicleYear")?.value||"",
+    fuel:$("homeVehicleFuel")?.value||"",
+    body:$("homeVehicleBody")?.value||"",
+    transmission:$("homeVehicleTransmission")?.value||"",
+    color:$("homeVehicleColor")?.value||"",
+    ownPhoto:ownVehiclePhotoData||"",
+    imageRecord:localStorage.getItem("fahrtenbuch_vehicle_image")||""
+  };
+}
+
+function showSavedVehicleSummary(profile){
+  const title=[profile.make,profile.model,profile.variant].filter(Boolean).join(" ") || "Fahrzeug";
+  const meta=[
+    profile.year ? "Baujahr "+profile.year : "",
+    profile.fuel,
+    profile.body,
+    profile.transmission,
+    profile.color
+  ].filter(Boolean).join(" · ");
+
+  $("savedVehicleTitle").textContent=title;
+  $("savedVehicleMeta").textContent=meta || "Keine weiteren Angaben";
+  $("vehicleEditPanel").classList.add("hidden");
+  $("vehicleSavedSummary").classList.remove("hidden");
+}
+
+function saveVehicleProfile(){
+  const profile=getVehicleProfile();
+  if(!profile.make || !profile.model || !profile.variant || !profile.year){
+    alert("Bitte mindestens Hersteller, Baureihe/Modell, Variante/Motorisierung und Herstellungsjahr auswählen.");
+    return;
+  }
+  localStorage.setItem("fahrtenbuch_vehicle_profile",JSON.stringify(profile));
+  if(profile.ownPhoto){
+    localStorage.setItem("fahrtenbuch_vehicle_own_photo",profile.ownPhoto);
+  }else{
+    localStorage.removeItem("fahrtenbuch_vehicle_own_photo");
+  }
+  showSavedVehicleSummary(profile);
+}
+
+function editVehicleProfile(){
+  $("vehicleSavedSummary").classList.add("hidden");
+  $("vehicleEditPanel").classList.remove("hidden");
+}
+
+function loadVehicleProfileState(){
+  const own=localStorage.getItem("fahrtenbuch_vehicle_own_photo")||"";
+  if(own){
+    applyOwnVehiclePhoto(own);
+    $("ownVehiclePhotoPreview").src=own;
+    $("ownVehiclePhotoPreviewWrap").classList.remove("hidden");
+  }
+
+  let profile=null;
+  try{ profile=JSON.parse(localStorage.getItem("fahrtenbuch_vehicle_profile")||"null"); }catch(_){}
+  if(profile){
+    showSavedVehicleSummary(profile);
+  }
+}
+
+const savedMake = localStorage.getItem("fahrtenbuch_vehicle_make") || "";
+const savedModel = localStorage.getItem("fahrtenbuch_vehicle_model") || "";
+const savedVariant = localStorage.getItem("fahrtenbuch_vehicle_variant") || "";
+const savedYear = localStorage.getItem("fahrtenbuch_vehicle_year") || "";
+const savedFuel = localStorage.getItem("fahrtenbuch_vehicle_fuel") || "";
+const savedBody = localStorage.getItem("fahrtenbuch_vehicle_body") || "";
+const savedTransmission = localStorage.getItem("fahrtenbuch_vehicle_transmission") || "";
+const savedColor = localStorage.getItem("fahrtenbuch_vehicle_color") || "";
+
+function initializeVehiclePicker() {
+  const makeSelect = $("homeVehicleMake");
+  const modelSelect = $("homeVehicleModel");
+  const variantSelect = $("homeVehicleVariant");
+  if (!makeSelect || !modelSelect || !variantSelect) return;
+
+  makeSelect.value = savedMake;
+  fillVehicleModels(savedMake, savedModel);
+  fillVehicleVariants(savedMake, savedModel, savedVariant);
+
+  $("homeVehicleYear").value = savedYear;
+  $("homeVehicleFuel").value = savedFuel;
+  $("homeVehicleBody").value = savedBody;
+  $("homeVehicleTransmission").value = savedTransmission;
+  $("homeVehicleColor").value = savedColor;
+
+  makeSelect.addEventListener("change", () => {
+    const make = makeSelect.value;
+    fillVehicleModels(make, "");
+    fillVehicleVariants(make, "", "");
+    updateVehicleVisual();
+    clearVehicleImageForChangedSelection();
+  });
+
+  modelSelect.addEventListener("change", () => {
+    fillVehicleVariants(makeSelect.value, modelSelect.value, "");
+    updateVehicleVisual();
+    clearVehicleImageForChangedSelection();
+  });
+
+  variantSelect.addEventListener("change", () => {
+    updateVehicleVisual();
+    clearVehicleImageForChangedSelection();
+  });
+
+  ["homeVehicleYear","homeVehicleFuel","homeVehicleBody","homeVehicleTransmission","homeVehicleColor"].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.addEventListener("change", () => {
+      updateVehicleVisual();
+      clearVehicleImageForChangedSelection();
+    });
+  });
+
+  updateVehicleVisual();
+
+  if ($("searchVehicleImageBtn")) $("searchVehicleImageBtn").addEventListener("click", searchVehicleImages);
+  if ($("nextVehicleImageBtn")) $("nextVehicleImageBtn").addEventListener("click", nextVehicleImage);
+  if ($("useVehicleImageBtn")) $("useVehicleImageBtn").addEventListener("click", useVehicleImage);
+
+  loadSavedVehicleImage();
+}
+
+initializeVehiclePicker();
+
+if($("ownVehiclePhoto")){
+  $("ownVehiclePhoto").addEventListener("change",async e=>{
+    const file=e.target.files && e.target.files[0];
+    if(!file) return;
+    if(!file.type.startsWith("image/")){
+      alert("Bitte eine Bilddatei auswählen.");
+      e.target.value="";
+      return;
+    }
+    try{
+      const data=await resizeOwnVehiclePhoto(file);
+      applyOwnVehiclePhoto(data);
+      $("ownVehiclePhotoPreview").src=data;
+      $("ownVehiclePhotoPreviewWrap").classList.remove("hidden");
+    }catch(err){
+      alert(err.message||"Das Bild konnte nicht verarbeitet werden.");
+    }
+  });
+
+  $("removeOwnVehiclePhoto").addEventListener("click",()=>{
+    ownVehiclePhotoData=null;
+    $("ownVehiclePhoto").value="";
+    $("ownVehiclePhotoPreview").removeAttribute("src");
+    $("ownVehiclePhotoPreviewWrap").classList.add("hidden");
+    localStorage.removeItem("fahrtenbuch_vehicle_own_photo");
+    loadSavedVehicleImage();
+    if(!$("vehiclePhoto").src) showVehicleFallback();
+  });
+}
+
+if($("saveVehicleProfileBtn")) $("saveVehicleProfileBtn").addEventListener("click",saveVehicleProfile);
+if($("editVehicleProfileBtn")) $("editVehicleProfileBtn").addEventListener("click",editVehicleProfile);
+
+
+
+render();
+</script>
+
+
+
+
+<script>
+(function(){
+  const KEY="fahrtenbuch_vehicle_v19";
+  const el=id=>document.getElementById(id);
+  let photoData="";
+
+  function status(message){
+    const node=el("v19Status");
+    if(node) node.textContent=message||"";
+  }
+
+  function readSaved(){
+    try{
+      return JSON.parse(localStorage.getItem(KEY)||"null");
+    }catch(e){
+      return null;
+    }
+  }
+
+  function compressImage(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onerror=()=>reject(new Error("Bild konnte nicht gelesen werden."));
+      reader.onload=()=>{
+        const source=reader.result;
+        const img=new Image();
+        img.onerror=()=>resolve(source);
+        img.onload=()=>{
+          try{
+            const maxSide=900;
+            let w=img.naturalWidth||img.width;
+            let h=img.naturalHeight||img.height;
+            const scale=Math.min(1,maxSide/Math.max(w,h));
+            w=Math.max(1,Math.round(w*scale));
+            h=Math.max(1,Math.round(h*scale));
+            const canvas=document.createElement("canvas");
+            canvas.width=w;
+            canvas.height=h;
+            const ctx=canvas.getContext("2d");
+            ctx.drawImage(img,0,0,w,h);
+            resolve(canvas.toDataURL("image/jpeg",0.68));
+          }catch(e){
+            resolve(source);
+          }
+        };
+        img.src=source;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function setPreview(data){
+    photoData=data||"";
+    const wrap=el("v19PreviewWrap");
+    const img=el("v19Preview");
+    if(photoData){
+      img.src=photoData;
+      wrap.classList.remove("hidden");
+    }else{
+      img.removeAttribute("src");
+      wrap.classList.add("hidden");
+    }
+  }
+
+  function getFormData(){
+    return {
+      make:el("v19Make").value.trim(),
+      model:el("v19Model").value.trim(),
+      variant:el("v19Variant").value.trim(),
+      year:el("v19Year").value.trim(),
+      fuel:el("v19Fuel").value,
+      body:el("v19Body").value,
+      transmission:el("v19Transmission").value,
+      color:el("v19Color").value.trim(),
+      photo:photoData
+    };
+  }
+
+  function fillForm(p){
+    if(!p) return;
+    el("v19Make").value=p.make||"";
+    el("v19Model").value=p.model||"";
+    el("v19Variant").value=p.variant||"";
+    el("v19Year").value=p.year||"";
+    el("v19Fuel").value=p.fuel||"";
+    el("v19Body").value=p.body||"";
+    el("v19Transmission").value=p.transmission||"";
+    el("v19Color").value=p.color||"";
+    setPreview(p.photo||"");
+  }
+
+  function showCard(p){
+    el("v19VehicleForm").classList.add("hidden");
+    el("v19VehicleCard").classList.remove("hidden");
+
+    el("v19CardTitle").textContent=[p.make,p.model,p.variant].filter(Boolean).join(" ")||"Fahrzeug";
+    el("v19CardMeta").textContent=[
+      p.year ? "Baujahr "+p.year : "",
+      p.fuel,
+      p.body,
+      p.transmission,
+      p.color
+    ].filter(Boolean).join(" · ");
+
+    if(p.photo){
+      el("v19CardPhoto").src=p.photo;
+      el("v19CardPhoto").classList.remove("hidden");
+    }else{
+      el("v19CardPhoto").removeAttribute("src");
+      el("v19CardPhoto").classList.add("hidden");
+    }
+  }
+
+  el("v19PhotoInput").addEventListener("change",async function(){
+    const file=this.files&&this.files[0];
+    if(!file) return;
+
+    if(!file.type.startsWith("image/")){
+      status("Bitte eine Bilddatei auswählen.");
+      this.value="";
+      return;
+    }
+
+    status("Bild wird vorbereitet …");
+    try{
+      const data=await compressImage(file);
+      setPreview(data);
+      status("Bild ist bereit zum Speichern.");
+    }catch(e){
+      status("Das Bild konnte nicht verarbeitet werden.");
+    }
+  });
+
+  el("v19RemovePhoto").addEventListener("click",function(){
+    el("v19PhotoInput").value="";
+    setPreview("");
+    status("Bild entfernt.");
+  });
+
+  el("v19Save").addEventListener("click",function(){
+    const profile=getFormData();
+
+    if(!profile.make){
+      status("Bitte Hersteller eintragen.");
+      el("v19Make").focus();
+      return;
+    }
+    if(!profile.model){
+      status("Bitte Baureihe / Modell eintragen.");
+      el("v19Model").focus();
+      return;
+    }
+
+    try{
+      localStorage.setItem(KEY,JSON.stringify(profile));
+      showCard(profile);
+    }catch(e){
+      status("Speichern nicht möglich. Bitte ein kleineres Fahrzeugbild auswählen.");
+    }
+  });
+
+  el("v19Edit").addEventListener("click",function(){
+    const saved=readSaved();
+    el("v19VehicleCard").classList.add("hidden");
+    el("v19VehicleForm").classList.remove("hidden");
+    if(saved) fillForm(saved);
+    status("");
+  });
+
+  const saved=readSaved();
+  if(saved){
+    fillForm(saved);
+    showCard(saved);
+  }
+})();
+</script>
+
+
+
+
+
+
+
+
+<script>
+(function(){
+  const splash=document.getElementById("splashScreenV25");
+  const speed=document.getElementById("v25Speed");
+  const duration=4200;
+  const start=performance.now();
+
+  function frame(now){
+    const p=Math.min(1,(now-start)/duration);
+    let kmh;
+    if(p<.78){
+      kmh=Math.round(230*(p/.78));
+    }else{
+      kmh=Math.round(230-((p-.78)/.22)*150);
+    }
+    if(speed) speed.innerHTML=Math.max(0,kmh)+'<span>KM/H</span>';
+    if(p<1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  setTimeout(()=>splash&&splash.classList.add("hide"),4200);
+  setTimeout(()=>splash&&splash.remove(),5000);
+})();
+</script>
+
+</body>
+</html>
